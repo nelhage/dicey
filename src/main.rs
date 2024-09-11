@@ -132,7 +132,7 @@ fn all_actions(state: &GameState) -> Vec<Action> {
                     if state.dice[d1] == 0 {
                         continue;
                     }
-                    for d2 in 0..6 {
+                    for d2 in d1..6 {
                         if state.dice[d2] < if d1 == d2 { 2 } else { 1 } {
                             continue;
                         }
