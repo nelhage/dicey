@@ -21,6 +21,7 @@
           default = pkgs.mkShell { packages = [
             pkgs.bashInteractive
             pkgs.cargo
+            pkgs.rustfmt
           ]; };
         }
       );
