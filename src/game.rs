@@ -13,11 +13,17 @@ impl Die {
     pub fn pips(self) -> u8 {
         self.0.get() as u8
     }
-    pub fn with_pips(pips: u8) -> Self {
+    pub fn from_pips(pips: u8) -> Self {
         if pips < 1 || pips > 6 {
             panic!("bad pips: {}", pips);
         }
         Die((pips).try_into().unwrap())
+    }
+    pub fn from_index(index: usize) -> Self {
+        if index > 5 {
+            panic!("bad index: {}", index);
+        }
+        Die(((index + 1) as u8).try_into().unwrap())
     }
 }
 
@@ -188,7 +194,7 @@ impl Spell1 for Chisel {
     fn cast_spell(&self, state: &GameState, die: Die) -> GameState {
         let mut dice = state.dice.clone();
         dice[die.as_index() - 1] += 1;
-        dice[Die::with_pips(1).as_index()] += 1;
+        dice[Die::from_pips(1).as_index()] += 1;
         GameState {
             dice,
             ..state.clone()
@@ -213,10 +219,10 @@ impl Spell1 for DoppelTwice {
         let mut dice = state.dice.clone();
         let mut double = die.pips() * 2;
         if double > 6 {
-            dice[Die::with_pips(double - 6).as_index()] += 1;
+            dice[Die::from_pips(double - 6).as_index()] += 1;
             double -= 6;
         }
-        dice[Die::with_pips(double).as_index()] += 1;
+        dice[Die::from_pips(double).as_index()] += 1;
         GameState {
             dice,
             ..state.clone()

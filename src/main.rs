@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use bitvec::prelude as bv;
 use core::array;
+use std::vec::Vec;
 
 mod game;
 use game::*;
@@ -31,6 +32,7 @@ fn initial_state() -> GameState {
 
 #[derive(Debug, Copy, Clone)]
 enum Action {
+    Pass,
     Prep { spell: Die, slot: u8 },
     Cast1 { slot: u8, die: Die },
     Cast2 { slot: u8, d1: Die, d2: Die },
@@ -40,7 +42,7 @@ fn use_spell(state: &GameState, slot_idx: u8) -> (GameState, SpellRef) {
     let slot = &state.board[slot_idx as usize];
     assert!(slot.uses > 0);
     let spell_idx = slot.spell.unwrap().as_index();
-    assert!(!state.spellbook.consumed[spell_idx]);
+    // assert!(!state.spellbook.consumed[spell_idx]);
     let spell = state.spellbook.spells[spell_idx];
 
     let mut new_board = state.board.clone();
@@ -56,6 +58,7 @@ fn use_spell(state: &GameState, slot_idx: u8) -> (GameState, SpellRef) {
 
 fn apply_action(state: &GameState, action: Action) -> GameState {
     match action {
+        Action::Pass => state.clone(),
         Action::Prep { spell, slot } => {
             assert!(!state.spellbook.consumed[spell.as_index()]);
             let mut board = state.board.clone();
@@ -89,13 +92,94 @@ fn apply_action(state: &GameState, action: Action) -> GameState {
     }
 }
 
+fn all_actions(state: &GameState) -> Vec<Action> {
+    let mut actions = Vec::new();
+    for di in 0..6 {
+        if state.dice[di] > 0 && !state.spellbook.consumed[di] {
+            for slot in 0..4 {
+                actions.push(Action::Prep {
+                    spell: Die::from_index(di),
+                    slot,
+                });
+            }
+        }
+    }
+
+    for si in 0..4 {
+        let slot = &state.board[si];
+        if slot.spell.is_none() || slot.uses == 0 {
+            continue;
+        }
+        let spell = state.spellbook.spells[slot.spell.unwrap().as_index()];
+        match spell {
+            SpellRef::Spell1(s) => {
+                for di in 0..6 {
+                    let die = Die::from_index(di);
+                    if state.dice[di] > 0 && s.can_cast(state, die) {
+                        actions.push(Action::Cast1 {
+                            slot: si as u8,
+                            die,
+                        })
+                    }
+                }
+            }
+            SpellRef::Spell2(s) => {
+                for d1 in 0..6 {
+                    if state.dice[d1] == 0 {
+                        continue;
+                    }
+                    for d2 in 0..6 {
+                        if state.dice[d2] < if d1 == d2 { 2 } else { 1 } {
+                            continue;
+                        }
+                        let d1 = Die::from_index(d1);
+                        let d2 = Die::from_index(d2);
+                        if s.can_cast(state, d1, d2) {
+                            actions.push(Action::Cast2 {
+                                slot: si as u8,
+                                d1,
+                                d2,
+                            })
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return actions;
+}
+
+fn search(state: &GameState, depth: usize) -> (Action, GameState) {
+    let mut pv: Action = Action::Pass;
+    let mut best = state.clone();
+
+    if depth == 0 {
+        return (pv, best);
+    }
+
+    for act in all_actions(&state) {
+        let child = apply_action(state, act);
+
+        let (_, terminal) = search(&child, depth - 1);
+
+        if terminal.enemy_hp < best.enemy_hp {
+            pv = act;
+            best = terminal;
+        }
+    }
+
+    (pv, best)
+}
+
 fn main() {
+    /*
     let st = initial_state();
     println!("Game starts: {:?}", st);
     let s1 = apply_action(
         &st,
         Action::Prep {
-            spell: Die::with_pips(1),
+            spell: Die::from_pips(1),
             slot: 0,
         },
     );
@@ -104,8 +188,16 @@ fn main() {
         &s1,
         Action::Cast1 {
             slot: 0,
-            die: Die::with_pips(2),
+            die: Die::from_pips(2),
         },
     );
     println!("Cast 0 with 2: {:?}", s2);
+    */
+
+    let depth = 6;
+    let init = initial_state();
+    let (pv, terminal) = search(&init, depth);
+    println!("depth={}", depth);
+    println!("pv: {:?}", pv);
+    println!("terminal: {:?}", terminal);
 }
