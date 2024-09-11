@@ -1,4 +1,4 @@
-use std::num::{NonZeroI8, NonZeroU8};
+use std::num::{NonZeroU8};
 use std::fmt;
 
 use bitvec::prelude as bv;
@@ -7,13 +7,13 @@ use bitvec::prelude as bv;
 pub struct Die(NonZeroU8);
 
 impl Die {
-    fn as_index(self) -> usize {
+    pub fn as_index(self) -> usize {
         (self.0.get() - 1) as usize
     }
-    fn pips(self) -> usize {
+    pub fn pips(self) -> usize {
         self.0.get() as usize
     }
-    fn with_pips(pips: usize) -> Self {
+    pub fn with_pips(pips: usize) -> Self {
         if pips < 1 || pips > 6 {
             panic!("bad pips: {}", pips);
         }
@@ -29,6 +29,18 @@ pub struct GameState {
     pub enemy_hp: u8,
 }
 
+impl GameState {
+    pub fn use_die(&self, die: Die) -> GameState {
+        let mut dice = self.dice;
+        assert!(dice[die.as_index()] > 0);
+        dice[die.as_index()] -= 1;
+        return GameState {
+            dice,
+            ..self.clone()
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Spellbook {
     pub spells: [SpellRef; 6],
@@ -42,10 +54,16 @@ pub enum SpellRef {
 }
 
 impl SpellRef {
-    fn spell_name(&self) -> &'static str {
+    pub fn spell_name(&self) -> &'static str {
         match *self {
             SpellRef::Spell1(s1) => s1.name(),
             SpellRef::Spell2(s2) => s2.name(),
+        }
+    }
+    pub fn initial_uses(&self) -> u8 {
+        match *self {
+            SpellRef::Spell1(s1) => s1.initial_uses(),
+            SpellRef::Spell2(s2) => s2.initial_uses(),
         }
     }
 }
@@ -84,13 +102,13 @@ impl fmt::Debug for SpellNames {
 }
 #[derive(Debug, Clone)]
 pub struct SpellSlot {
-    spell: Option<NonZeroI8>,
-    uses: i8,
+    spell: Option<Die>,
+    uses: u8,
 }
 
 pub trait BaseSpell {
     fn name(&self) -> &str;
-    fn initial_uses(&self) -> i8 { 1 }
+    fn initial_uses(&self) -> u8 { 1 }
 }
 
 pub trait Spell1: BaseSpell {
@@ -142,7 +160,7 @@ impl Spell2 for ViseGrip {
 pub struct Chisel;
 impl BaseSpell for Chisel {
     fn name(&self) -> &str { "Chisel" }
-    fn initial_uses(&self) -> i8 { 2 }
+    fn initial_uses(&self) -> u8 { 2 }
 }
 
 impl Spell1 for Chisel {
@@ -163,7 +181,7 @@ impl Spell1 for Chisel {
 pub struct DoppelTwice;
 impl BaseSpell for DoppelTwice {
     fn name(&self) -> &str { "DoppelTwice" }
-    fn initial_uses(&self) -> i8 { 2 }
+    fn initial_uses(&self) -> u8 { 2 }
 }
 impl Spell1 for DoppelTwice {
     fn cast_spell(&self, state: &GameState, die: Die) -> Option<GameState> {
