@@ -94,15 +94,19 @@ fn apply_action(state: &GameState, action: Action) -> GameState {
 
 fn all_actions(state: &GameState) -> Vec<Action> {
     let mut actions = Vec::new();
-    for di in 0..6 {
-        if state.dice[di] > 0 && !state.spellbook.consumed[di] {
-            for slot in 0..4 {
+    for slot in 0..4 {
+        if state.board[slot].uses > 0 {
+            continue;
+        }
+        for di in 0..6 {
+            if state.dice[di] > 0 && !state.spellbook.consumed[di] {
                 actions.push(Action::Prep {
                     spell: Die::from_index(di),
-                    slot,
+                    slot: slot as u8,
                 });
             }
         }
+        break;
     }
 
     for si in 0..4 {
@@ -194,10 +198,11 @@ fn main() {
     println!("Cast 0 with 2: {:?}", s2);
     */
 
-    let depth = 6;
-    let init = initial_state();
-    let (pv, terminal) = search(&init, depth);
-    println!("depth={}", depth);
-    println!("pv: {:?}", pv);
-    println!("terminal: {:?}", terminal);
+    for depth in 0.. {
+        let init = initial_state();
+        let (pv, terminal) = search(&init, depth);
+        println!("depth={}", depth);
+        println!("pv: {:?}", pv);
+        println!("terminal: {:?}", terminal);
+    }
 }
