@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use bitvec::prelude as bv;
 use core::array;
-use std::vec::Vec;
+use std::{cmp::Ordering, time::Duration};
+use std::{collections::BinaryHeap, time::Instant, vec::Vec};
 
 mod game;
 use game::*;
@@ -176,6 +177,83 @@ fn search(state: &GameState, depth: usize) -> (Action, GameState) {
     (pv, best)
 }
 
+#[derive(Clone)]
+struct SearchNode {
+    state: GameState,
+    depth: usize,
+}
+
+impl SearchNode {
+    fn key(&self) -> (usize, usize) {
+        (self.state.enemy_hp as usize, self.depth)
+    }
+}
+
+impl PartialEq for SearchNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.key() == other.key()
+    }
+}
+impl Eq for SearchNode {}
+
+impl Ord for SearchNode {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.key().cmp(&other.key()).reverse()
+    }
+}
+
+impl PartialOrd for SearchNode {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+const MAX_ELEMS: usize = 10_000_000;
+const TICK: Duration = Duration::from_secs(1);
+
+fn best_first() {
+    let start = Instant::now();
+    let mut tick = start + TICK;
+    let mut heap = BinaryHeap::new();
+    let initial = SearchNode {
+        state: initial_state(),
+        depth: 0,
+    };
+    let mut best = initial.clone();
+    heap.push(initial);
+    for i in 0.. {
+        let nd = heap.pop().unwrap();
+        if nd > best {
+            best = nd.clone();
+        }
+        for act in all_actions(&nd.state) {
+            heap.push(SearchNode {
+                state: apply_action(&nd.state, act),
+                depth: nd.depth + 1,
+            });
+        }
+        if i % 10_000 == 0 {
+            let now = Instant::now();
+            if now >= tick {
+                tick += TICK;
+                let elapsed = now.duration_since(start);
+
+                println!(
+                    "i={} n={} t={:?} depth={} best={:?}",
+                    i,
+                    heap.len(),
+                    elapsed,
+                    best.depth,
+                    best.state,
+                );
+            }
+        }
+        if heap.len() > MAX_ELEMS {
+            break;
+        }
+    }
+}
+
 fn main() {
     /*
     let st = initial_state();
@@ -198,6 +276,7 @@ fn main() {
     println!("Cast 0 with 2: {:?}", s2);
     */
 
+    /*
     for depth in 0.. {
         let init = initial_state();
         let (pv, terminal) = search(&init, depth);
@@ -205,4 +284,6 @@ fn main() {
         println!("pv: {:?}", pv);
         println!("terminal: {:?}", terminal);
     }
+    */
+    best_first();
 }
